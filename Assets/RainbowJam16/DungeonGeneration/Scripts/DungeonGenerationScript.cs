@@ -233,7 +233,14 @@ public class DungeonGenerationScript : MonoBehaviour
 		{
 			Vector3 g = GetDungeonGrid( door.transform.position / RoomDescriptionScript.Static_GridSize );
 			Vector3 doorg = GetDungeonGrid( linkdoor.Doorway.transform.position / RoomDescriptionScript.Static_GridSize );
-			if ( Occupied[(int) g.x, (int) g.y, (int) g.z] && ( g != doorg ) )
+			if (
+				( ( g.x < 0 ) || ( g.y < 0 ) || ( g.z < 0 ) ) ||
+				( ( g.x >= Size.x ) || ( g.y >= Size.y ) || ( g.z >= Size.z ) ) ||
+				(
+					Occupied[(int) g.x, (int) g.y, (int) g.z] &&
+					( g != doorg )
+				)
+			)
 			{
 				return false;
 			}
