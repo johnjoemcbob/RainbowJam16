@@ -14,7 +14,9 @@ public class DoorDescriptionScript : MonoBehaviour
 {
 	[Header( "Door Description" )]
 	// Flag for generation; is this door attached to another?
-	public bool Attached = false;
+	public DoorDescriptionScript Attached;
 	// The doorway grid space
 	public GameObject Doorway;
+	// The AI path node linked to this door
+	public AIPathNodeScript Node;
 }

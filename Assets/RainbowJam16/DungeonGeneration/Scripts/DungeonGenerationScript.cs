@@ -8,6 +8,7 @@
 //
 
 using UnityEngine;
+using UnityEditor;
 using System.Collections.Generic;
 
 [ExecuteInEditMode]
@@ -45,6 +46,8 @@ public class DungeonGenerationScript : MonoBehaviour
 		// Find starting grid occupied
 		CheckOccupy();
 
+		transform.GetComponentInChildren<AIPathHandlerScript>().PathNodes.Clear();
+
 		// Until tryaddroom returns fail, create extra rooms
 		int runcap = 0;
 		while ( true )
@@ -57,12 +60,14 @@ public class DungeonGenerationScript : MonoBehaviour
 
 			CheckOccupy();
 			runcap++;
-        }
+		}
+		// Attach other doors if possible, or block exits
+		Generate_TryAddDoors();
 		Generate_DeadEnds();
 
 		foreach ( DoorDescriptionScript door in Doors )
 		{
-			door.Attached = false;
+			door.Attached = null;
 		}
 	}
 
@@ -116,9 +121,12 @@ public class DungeonGenerationScript : MonoBehaviour
 						placed = true;
 
 						// Flag as attached
-						door.Attached = true;
-						newdoor.Attached = true;
+						//door.Attached = newdoor;
+						//newdoor.Attached = door;
 						Doors.Add( door );
+
+						// Send to AI to generate
+						transform.GetComponentInChildren<AIPathHandlerScript>().GenerateRoom( testroom );
 
 						return true;
 					}
@@ -133,6 +141,45 @@ public class DungeonGenerationScript : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	// After successfully adding a room, try to link all doors if possible
+	protected void Generate_TryAddDoors()
+	{
+		DoorDescriptionScript[] doors = GetComponentsInChildren<DoorDescriptionScript>();
+        foreach ( var door in doors )
+		{
+			if ( door.Attached == null )
+			{
+				// Search for a door opposite this one
+				Vector3 position = door.Doorway.transform.position;
+				foreach ( var testdoor in doors )
+				{
+					if ( testdoor.transform.parent == door.transform.parent ) continue;
+
+					float dist = Vector3.Distance( testdoor.transform.position, position );
+					//Debug.DrawLine( testdoor.Doorway.transform.position, position + Vector3.up, Color.black, 100 );
+					if ( dist < 0.5f )
+					{
+						door.Attached = testdoor;
+						testdoor.Attached = door;
+
+						// Send to AI to generate
+						List<AIPathNodeScript> nodes = new List<AIPathNodeScript>();
+						{
+							door.Node.ConnectedTo.Add( testdoor.Node );
+							testdoor.Node.ConnectedTo.Add( door.Node );
+
+							nodes.Add( door.Node );
+							nodes.Add( testdoor.Node );
+						}
+						transform.GetComponentInChildren<AIPathHandlerScript>().PathNodes.AddRange( nodes );
+
+						break;
+                    }
+				}
+			}
+		}
 	}
 
 	// Block any gaps in the dungeon with a dead end prefab
@@ -177,9 +224,11 @@ public class DungeonGenerationScript : MonoBehaviour
 		}
 		foreach ( DoorDescriptionScript door in Doors )
 		{
-			door.Attached = false;
+			door.Attached = null;
 		}
 		Doors.Clear();
+
+		transform.GetComponentInChildren<AIPathHandlerScript>().PathNodes.Clear();
 	}
 
 	// Check the occupy state of the dungeon
@@ -268,7 +317,7 @@ public class DungeonGenerationScript : MonoBehaviour
 	void OnDrawGizmos()
 	{
 		Gizmos.color = Color.yellow;
-		Gizmos.DrawWireCube( transform.position, Size * RoomDescriptionScript.Static_GridSize );
+		Gizmos.DrawWireCube( transform.position, ( Size ) * RoomDescriptionScript.Static_GridSize );
 
 		// Draw occupied grid spaces
 		if ( Occupied != null )
@@ -281,9 +330,9 @@ public class DungeonGenerationScript : MonoBehaviour
 			{
 				if ( Occupied[x, y, z] )
 				{
-					Gizmos.color = Color.red;
-					Gizmos.DrawWireCube(
-						transform.position + GetFromDungeonPosition( new Vector3( x, y + 0.5f, z ) * RoomDescriptionScript.Static_GridSize ),
+					Gizmos.color = new Color( 1, 0, 0, 0.1f );
+					Gizmos.DrawCube(
+						transform.position + GetFromDungeonPosition( new Vector3( x + 0.5f, y + 0.5f, z + 0.5f ) * RoomDescriptionScript.Static_GridSize ),
 						new Vector3( 1, 1, 1 ) * RoomDescriptionScript.Static_GridSize
 					);
 				}

@@ -66,11 +66,11 @@ public class RoomDescriptionScript : MonoBehaviour
 	}
 	public int GetBottom()
 	{
-		return -GetTop();
+		return 0;
 	}
 	public int GetTop()
 	{
-		return Mathf.CeilToInt( ( Size.y - 1 ) / 2 );
+		return Mathf.CeilToInt( Size.y ) - 1;
 	}
 	public int GetNear()
 	{
