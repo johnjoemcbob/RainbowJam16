@@ -17,6 +17,7 @@ public class KeyframeAnimationHandlerScript : ActivatableScript
 	public bool UsePosition = true;
 	public bool UseRotation = false;
 	public bool UseScale = false;
+	public bool UseLocalSpace = true;
 
 	public float AnimationSpeed = 1;
 	public float AnimationTime = 1;
@@ -29,12 +30,11 @@ public class KeyframeAnimationHandlerScript : ActivatableScript
 
 	public KeyframeStruct[] Keyframes;
 
-	private KeyframeAnimationScript Animation = new KeyframeAnimationScript();
-	private float Time_Sample = 0;
-	private int Reverse = 1;
+	protected KeyframeAnimationScript Animation = new KeyframeAnimationScript();
+	protected float Time_Sample = 0;
+	protected int Reverse = 1;
 	#endregion
 
-	// Use this for initialization
 	void Start()
 	{
 		//Time_Sample = AnimationOffset;
@@ -50,8 +50,7 @@ public class KeyframeAnimationHandlerScript : ActivatableScript
 		}
 	}
 
-	// Update is called once per frame
-	void Update()
+	protected virtual void Update()
 	{
 		if ( !Activated ) return;
 
@@ -84,11 +83,25 @@ public class KeyframeAnimationHandlerScript : ActivatableScript
 		// Use keyframe data
 		if ( UsePosition )
 		{
-			transform.localPosition = keyframe.Position;
+			if ( UseLocalSpace )
+			{
+				transform.localPosition = keyframe.Position;
+			}
+			else
+			{
+				transform.position = keyframe.Position;
+			}
 		}
 		if ( UseRotation )
 		{
-			transform.localEulerAngles = keyframe.Rotation;
+			if ( UseLocalSpace )
+			{
+				transform.localEulerAngles = keyframe.Rotation;
+			}
+			else
+			{
+				transform.eulerAngles = keyframe.Rotation;
+			}
 		}
 		if ( UseScale )
 		{

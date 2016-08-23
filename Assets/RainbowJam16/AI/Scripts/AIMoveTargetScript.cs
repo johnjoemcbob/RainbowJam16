@@ -47,13 +47,16 @@ public class AIMoveTargetScript : MonoBehaviour
 		// Temp
 		if ( ( CurrentPath != null ) && ( CurrentPath.Count > 0 ) )
 		{
-			// Lerp towards next node
-			transform.position = Vector3.Lerp( transform.position, CurrentPath[0].transform.position, Time.deltaTime * tempspeed );
-
-			// Remove node when close
-			if ( Vector3.Distance( transform.position, CurrentPath[0].transform.position ) < 1 )
+			if ( CurrentPath[0] != null )
 			{
-				CurrentPath.RemoveAt( 0 );
+				// Lerp towards next node
+				transform.position = Vector3.Lerp( transform.position, CurrentPath[0].transform.position, Time.deltaTime * tempspeed );
+
+				// Remove node when close
+				if ( Vector3.Distance( transform.position, CurrentPath[0].transform.position ) < 1 )
+				{
+					CurrentPath.RemoveAt( 0 );
+				}
 			}
 		}
 
@@ -72,6 +75,7 @@ public class AIMoveTargetScript : MonoBehaviour
 	public void FindPath()
 	{
 		if ( Target == null ) return;
+		if ( AIPathHandler.PathNodes.Count == 0 ) return;
 
 		// Find closest node to self
 		int node_self_index = AIPathHandler.GetClosestNodeIndex( transform.position );

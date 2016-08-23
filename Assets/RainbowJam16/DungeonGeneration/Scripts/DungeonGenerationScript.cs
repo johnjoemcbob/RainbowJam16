@@ -8,11 +8,10 @@
 //
 
 using UnityEngine;
-using UnityEditor;
 using System.Collections.Generic;
 
 [ExecuteInEditMode]
-public class DungeonGenerationScript : MonoBehaviour
+public class DungeonGenerationScript : ActivatableScript
 {
 	[Header( "Dungeon Generation" )]
 	// Size of the dungeon (in grid units)
@@ -23,27 +22,51 @@ public class DungeonGenerationScript : MonoBehaviour
 	public List<GameObject> DeadEndPrefabs;
 	// Flag to regenerate the dungeon
 	// (for testing)
-	public bool Regenerate = false;
+	//public bool Regenerate = false;
 
 	// Array of grid occupied spaces
 	protected bool[,,] Occupied;
 	// List of doors attached last generation, to be reset
 	List<DoorDescriptionScript> Doors = new List<DoorDescriptionScript>();
+	// Time optimisation testing
+	private double time_tryaddroom;
+	private double time_tryaddroom1;
+	private double time_tryaddroom2;
+	private double time_tryadddoors;
+	private double time_deadends;
+	private double time_checkoccupy;
+	private double time_collideoccupy;
 
 	void Update()
 	{
-		if ( Regenerate )
+		if ( Activated )
 		{
-			Clear();
-			Generate();
-			Regenerate = false;
+			// Run destroy functionality the frame before generation
+			if ( Occupied == null )
+			{
+				OnDeactivate();
+				Generate();
+			}
+			else
+			{
+				Clear();
+			}
+			//Regenerate = false;
 		}
 	}
 
 	// Generate a dungeon layout & instantiate the prefabs
 	protected void Generate()
 	{
+		float time_total = Time.realtimeSinceStartup;
+		time_tryaddroom = 0;
+		time_tryadddoors = 0;
+		time_deadends = 0;
+		time_checkoccupy = 0;
+		time_collideoccupy = 0;
+
 		// Find starting grid occupied
+		print( Occupied );
 		CheckOccupy();
 
 		transform.GetComponentInChildren<AIPathHandlerScript>().PathNodes.Clear();
@@ -69,11 +92,24 @@ public class DungeonGenerationScript : MonoBehaviour
 		{
 			door.Attached = null;
 		}
+
+		// Find time taken and output
+		time_total = Time.realtimeSinceStartup - time_total;
+		//print( "Dungeon Generation Times:" );
+		//print( "- TryAddRoom:    " + time_tryaddroom );
+		//print( "- TryAddRoom 1:  " + time_tryaddroom1 );
+		//print( "- TryAddRoom 2:  " + time_tryaddroom2 );
+		//print( "- TryAddDoors:   " + time_tryadddoors );
+		//print( "- DeadEnds:       " + time_deadends );
+		//print( "- CheckOccupy:  " + time_checkoccupy );
+		//print( "- CollideOccupy: " + time_collideoccupy );
+		//print( "Total Generate: " + time_total );
 	}
 
 	// Try to add another room to the current dungeon
 	protected bool Generate_TryAddRoom()
 	{
+		float time_startfunction = Time.realtimeSinceStartup;
 		// All doors must be;
 		// * Connected
 		// * Free
@@ -93,7 +129,9 @@ public class DungeonGenerationScript : MonoBehaviour
 				int randomroom = Random.Range( 0, PossibleRooms.Count );
 
 				// Try each door until one fits
+				float time_startfunction1 = Time.realtimeSinceStartup;
 				GameObject testroom = (GameObject) Instantiate( PossibleRooms[randomroom] );
+				time_tryaddroom1 += Time.realtimeSinceStartup - time_startfunction1;
 				bool placed = false;
                 foreach ( DoorDescriptionScript newdoor in testroom.GetComponentsInChildren<DoorDescriptionScript>() )
 				{
@@ -128,24 +166,35 @@ public class DungeonGenerationScript : MonoBehaviour
 						// Send to AI to generate
 						transform.GetComponentInChildren<AIPathHandlerScript>().GenerateRoom( testroom );
 
+						time_tryaddroom += Time.realtimeSinceStartup - time_startfunction;
 						return true;
 					}
 				}
 
 				if ( !placed )
 				{
-					DestroyImmediate( testroom );
+					if ( !Application.isPlaying )
+					{
+						DestroyImmediate( testroom );
+					}
+					else
+					{
+						Destroy( testroom );
+					}
 					PossibleRooms.RemoveAt( randomroom );
 				}
 			}
 		}
 
-		return false;
+		time_tryaddroom += Time.realtimeSinceStartup - time_startfunction;
+        return false;
 	}
 
 	// After successfully adding a room, try to link all doors if possible
 	protected void Generate_TryAddDoors()
 	{
+		float time_startfunction = Time.realtimeSinceStartup;
+
 		DoorDescriptionScript[] doors = GetComponentsInChildren<DoorDescriptionScript>();
         foreach ( var door in doors )
 		{
@@ -180,11 +229,15 @@ public class DungeonGenerationScript : MonoBehaviour
 				}
 			}
 		}
+
+		time_tryadddoors += Time.realtimeSinceStartup - time_startfunction;
 	}
 
 	// Block any gaps in the dungeon with a dead end prefab
 	protected void Generate_DeadEnds()
 	{
+		float time_startfunction = Time.realtimeSinceStartup;
+
 		foreach ( var door in GetComponentsInChildren<DoorDescriptionScript>() )
 		{
 			if ( !door.Attached )
@@ -208,7 +261,9 @@ public class DungeonGenerationScript : MonoBehaviour
 				deadend.transform.position = door.Doorway.transform.position;
 			}
 		}
-    }
+
+		time_deadends += Time.realtimeSinceStartup - time_startfunction;
+	}
 
 	// Remove any room children (i.e. previous dungeon layouts)
 	protected void Clear()
@@ -219,7 +274,14 @@ public class DungeonGenerationScript : MonoBehaviour
 		{
 			if ( !room.Static )
 			{
-				DestroyImmediate( room.gameObject );
+				if ( !Application.isPlaying )
+				{
+					DestroyImmediate( room.gameObject );
+				}
+				else
+				{
+					Destroy( room.gameObject );
+				}
 			}
 		}
 		foreach ( DoorDescriptionScript door in Doors )
@@ -234,6 +296,8 @@ public class DungeonGenerationScript : MonoBehaviour
 	// Check the occupy state of the dungeon
 	protected void CheckOccupy()
 	{
+		float time_startfunction = Time.realtimeSinceStartup;
+
 		// Initialise to size of dungeon grid
 		if ( Occupied == null )
 		{
@@ -250,16 +314,27 @@ public class DungeonGenerationScript : MonoBehaviour
 					for ( int z = room.GetNear(); z <= room.GetDeep(); z++ )
 					{
 						Vector3 g = GetDungeonGrid( ( Quaternion.Euler( room.transform.localEulerAngles ) * new Vector3( x, y, z ) ) + room.GetGridPosition() );
-						Occupied[(int) g.x, (int) g.y, (int) g.z] = true;
+
+						if (
+							( ( g.x >= 0 ) && ( g.y >= 0 ) && ( g.z >= 0 ) ) &&
+							( ( g.x < Size.x ) && ( g.y < Size.y ) && ( g.z < Size.z ) )
+						)
+						{
+							Occupied[(int) g.x, (int) g.y, (int) g.z] = true;
+						}
 					}
 				}
 			}
 		}
+
+		time_checkoccupy += Time.realtimeSinceStartup - time_startfunction;
 	}
 
 	// Check a new room collision against the occupy grid
 	protected bool CollideOccupy( RoomDescriptionScript room, DoorDescriptionScript linkdoor )
 	{
+		float time_startfunction = Time.realtimeSinceStartup;
+
 		for ( int x = room.GetLeft(); x <= room.GetRight(); x++ )
 		{
 			for ( int y = room.GetBottom(); y <= room.GetTop(); y++ )
@@ -273,6 +348,7 @@ public class DungeonGenerationScript : MonoBehaviour
 						Occupied[(int) g.x, (int) g.y, (int) g.z]
 					)
 					{
+						time_collideoccupy += Time.realtimeSinceStartup - time_startfunction;
 						return false;
 					}
 				}
@@ -291,10 +367,12 @@ public class DungeonGenerationScript : MonoBehaviour
 				)
 			)
 			{
+				time_collideoccupy += Time.realtimeSinceStartup - time_startfunction;
 				return false;
 			}
 		}
 
+		time_collideoccupy += Time.realtimeSinceStartup - time_startfunction;
 		return true;
 	}
 
